@@ -13,7 +13,7 @@
   https://www.arduino.cc/en/Tutorial/BuiltInExamples/Fade
 */
 
-#define MAXBRIGHT 128
+#define MAXBRIGHT 240
 #define DELAY 50
 #define STEPS 16
 #define ARMS 5
@@ -23,32 +23,57 @@
 
 int pins[] = {3, 5, 6, 9, 10};
 uint8_t value[] = {0, 0, 0, 0, 0};
+uint8_t target[] = {0, 0, 0, 0, 0};
 
 // the setup routine runs once when you press reset:
 void setup()
 {
 }
 
-// the loop routine runs over and over again forever:
-void loop()
-{
+uint8_t converge(uint8_t v, uint8_t t) {
+  if (v > t) {
+    if (v - t > FADE) {
+      return v - FADE;
+    } else {
+      return t;
+    }
+  } else {
+    if (t - v > FADE) {
+      return v + FADE;
+    } else {
+      return t;
+    }
+  }
+}
+
+void show() {
+  for (int a = 0; a < ARMS; a++) {
+    if (value[a] != target[a]) {
+      value[a] = converge(value[a], target[a]);
+      analogWrite(pins[a], value[a]);
+    }
+  }
+}
+
+void spin() {
   for (int rep = 0; rep < SPINREPEAT; rep++)
   {
     for (int rise = 0; rise < ARMS; rise++)
     {
-      value[rise] = 0;
+      target[rise] = MAXBRIGHT;
       int fall = (rise + ARMS - 2) % ARMS;
-      value[fall] = MAXBRIGHT;
-      for (int s = 0; s <= STEPS; s++)
+      target[fall] = 0;
+      for (int s = 0; s <= STEPS/8; s++)
       {
-        analogWrite(pins[rise], value[rise]);
-        analogWrite(pins[fall], value[fall]);
-        value[rise] += FADE;
-        value[fall] -= FADE;
+        show();
         delay(DELAY);
       }
     }
   }
+
+}
+
+void pulse() {
   for (int rep = 0; rep < GLOWREPEAT; rep++)
   {
     uint8_t val = 0;
@@ -57,8 +82,9 @@ void loop()
       for (int a = 0; a < ARMS; a++)
       {
 
-        analogWrite(pins[a], val);
+        target[a] = val;
       }
+      show();
       val += FADE;
       delay(DELAY);
     }
@@ -67,10 +93,46 @@ void loop()
       for (int a = 0; a < ARMS; a++)
       {
 
-        analogWrite(pins[a], val);
+        target[a] = val;
       }
+      show();
       val -= FADE;
       delay(DELAY);
     }
   }
+
+}
+
+void bounce() {
+  for (int rep=0; rep < GLOWREPEAT; rep++) {
+    for (int a=0; a<ARMS; a++) {
+      value[a]=MAXBRIGHT;
+      target[a]=MAXBRIGHT;
+      analogWrite(pins[a], value[a]);
+      show();
+      delay(DELAY);
+      show();
+      delay(DELAY);
+      target[a]=0;
+    }
+    for (int a=ARMS-1; a>-1; a--) {
+      value[a]=MAXBRIGHT;
+      target[a]=MAXBRIGHT;
+      analogWrite(pins[a], value[a]);
+      for (int s=0; s<STEPS/4; s++) {
+        show();
+        delay(DELAY);
+      }
+      target[a]=0;
+    }
+  }
+}
+
+
+// the loop routine runs over and over again forever:
+void loop()
+{
+  spin();
+  pulse();
+  bounce();
 }
